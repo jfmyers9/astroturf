@@ -2,34 +2,43 @@ package astroturf
 
 import (
 	"errors"
+	"time"
 
 	"github.com/cloudfoundry-incubator/garden"
 )
 
-type client struct {
+type backend struct {
 	capacity   garden.Capacity
 	containers map[string]garden.Container
+	graceTime  time.Duration
 }
 
-func NewClient(memoryInBytes, diskInBytes, maxContainers uint64) *client {
+func NewBackend(memoryInBytes, diskInBytes, maxContainers uint64, graceTime time.Duration) *backend {
 	containers := make(map[string]garden.Container)
-	return &client{
+	return &backend{
 		capacity: garden.Capacity{
 			MemoryInBytes: memoryInBytes,
 			DiskInBytes:   diskInBytes,
 			MaxContainers: maxContainers,
 		},
 		containers: containers,
+		graceTime:  graceTime,
 	}
 }
 
-func (c *client) Ping() error { return nil }
+func (c *backend) GraceTime(container garden.Container) time.Duration {
+	return c.graceTime
+}
 
-func (c *client) Capacity() (garden.Capacity, error) {
+func (c *backend) Start() error { return nil }
+func (c *backend) Stop()        {}
+func (c *backend) Ping() error  { return nil }
+
+func (c *backend) Capacity() (garden.Capacity, error) {
 	return c.capacity, nil
 }
 
-func (c *client) Create(spec garden.ContainerSpec) (garden.Container, error) {
+func (c *backend) Create(spec garden.ContainerSpec) (garden.Container, error) {
 	_, ok := c.containers[spec.Handle]
 	if ok {
 		return nil, errors.New("handle already taken")
@@ -40,7 +49,7 @@ func (c *client) Create(spec garden.ContainerSpec) (garden.Container, error) {
 	return container, nil
 }
 
-func (c *client) Destroy(handle string) error {
+func (c *backend) Destroy(handle string) error {
 	if _, ok := c.containers[handle]; !ok {
 		return errors.New("container does not exist")
 	}
@@ -49,7 +58,7 @@ func (c *client) Destroy(handle string) error {
 	return nil
 }
 
-func (c *client) Containers(properties garden.Properties) ([]garden.Container, error) {
+func (c *backend) Containers(properties garden.Properties) ([]garden.Container, error) {
 	matchingContainers := []garden.Container{}
 	for _, container := range c.containers {
 		matched := true
@@ -74,7 +83,7 @@ func (c *client) Containers(properties garden.Properties) ([]garden.Container, e
 	return matchingContainers, nil
 }
 
-func (c *client) BulkInfo(handles []string) (map[string]garden.ContainerInfoEntry, error) {
+func (c *backend) BulkInfo(handles []string) (map[string]garden.ContainerInfoEntry, error) {
 	infos := make(map[string]garden.ContainerInfoEntry)
 	for _, handle := range handles {
 		container, ok := c.containers[handle]
@@ -89,7 +98,7 @@ func (c *client) BulkInfo(handles []string) (map[string]garden.ContainerInfoEntr
 	return infos, nil
 }
 
-func (c *client) BulkMetrics(handles []string) (map[string]garden.ContainerMetricsEntry, error) {
+func (c *backend) BulkMetrics(handles []string) (map[string]garden.ContainerMetricsEntry, error) {
 	metrics := make(map[string]garden.ContainerMetricsEntry)
 	for _, handle := range handles {
 		container, ok := c.containers[handle]
@@ -104,7 +113,7 @@ func (c *client) BulkMetrics(handles []string) (map[string]garden.ContainerMetri
 	return metrics, nil
 }
 
-func (c *client) Lookup(handle string) (garden.Container, error) {
+func (c *backend) Lookup(handle string) (garden.Container, error) {
 	container, ok := c.containers[handle]
 	if !ok {
 		return nil, errors.New("container does not exist")
