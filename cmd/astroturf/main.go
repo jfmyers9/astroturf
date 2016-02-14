@@ -49,6 +49,8 @@ var maxContainers = flag.Uint64(
 )
 
 func main() {
+	cf_lager.AddFlags(flag.CommandLine)
+
 	flag.Parse()
 
 	graceTime := *containerGraceTime
