@@ -19,7 +19,7 @@ var listenNetwork = flag.String(
 )
 
 var listenAddr = flag.String(
-	"listenAddr",
+	"listenAddress",
 	"/tmp/garden.sock",
 	"address to listen on",
 )
