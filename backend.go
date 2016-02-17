@@ -2,15 +2,17 @@ package astroturf
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/cloudfoundry-incubator/garden"
 )
 
 type backend struct {
-	capacity   garden.Capacity
-	containers map[string]garden.Container
-	graceTime  time.Duration
+	capacity      garden.Capacity
+	containers    map[string]garden.Container
+	graceTime     time.Duration
+	containerLock sync.RWMutex
 }
 
 func NewBackend(memoryInBytes, diskInBytes, maxContainers uint64, graceTime time.Duration) *backend {
@@ -21,8 +23,9 @@ func NewBackend(memoryInBytes, diskInBytes, maxContainers uint64, graceTime time
 			DiskInBytes:   diskInBytes,
 			MaxContainers: maxContainers,
 		},
-		containers: containers,
-		graceTime:  graceTime,
+		containers:    containers,
+		graceTime:     graceTime,
+		containerLock: sync.RWMutex{},
 	}
 }
 
@@ -39,6 +42,9 @@ func (c *backend) Capacity() (garden.Capacity, error) {
 }
 
 func (c *backend) Create(spec garden.ContainerSpec) (garden.Container, error) {
+	c.containerLock.Lock()
+	defer c.containerLock.Unlock()
+
 	_, ok := c.containers[spec.Handle]
 	if ok {
 		return nil, errors.New("handle already taken")
@@ -50,6 +56,9 @@ func (c *backend) Create(spec garden.ContainerSpec) (garden.Container, error) {
 }
 
 func (c *backend) Destroy(handle string) error {
+	c.containerLock.Lock()
+	defer c.containerLock.Unlock()
+
 	if _, ok := c.containers[handle]; !ok {
 		return errors.New("container does not exist")
 	}
@@ -59,6 +68,9 @@ func (c *backend) Destroy(handle string) error {
 }
 
 func (c *backend) Containers(properties garden.Properties) ([]garden.Container, error) {
+	c.containerLock.RLock()
+	defer c.containerLock.RUnlock()
+
 	matchingContainers := []garden.Container{}
 	for _, container := range c.containers {
 		matched := true
@@ -84,6 +96,9 @@ func (c *backend) Containers(properties garden.Properties) ([]garden.Container, 
 }
 
 func (c *backend) BulkInfo(handles []string) (map[string]garden.ContainerInfoEntry, error) {
+	c.containerLock.RLock()
+	defer c.containerLock.RUnlock()
+
 	infos := make(map[string]garden.ContainerInfoEntry)
 	for _, handle := range handles {
 		container, ok := c.containers[handle]
@@ -99,6 +114,9 @@ func (c *backend) BulkInfo(handles []string) (map[string]garden.ContainerInfoEnt
 }
 
 func (c *backend) BulkMetrics(handles []string) (map[string]garden.ContainerMetricsEntry, error) {
+	c.containerLock.RLock()
+	defer c.containerLock.RUnlock()
+
 	metrics := make(map[string]garden.ContainerMetricsEntry)
 	for _, handle := range handles {
 		container, ok := c.containers[handle]
@@ -114,6 +132,9 @@ func (c *backend) BulkMetrics(handles []string) (map[string]garden.ContainerMetr
 }
 
 func (c *backend) Lookup(handle string) (garden.Container, error) {
+	c.containerLock.RLock()
+	defer c.containerLock.RUnlock()
+
 	container, ok := c.containers[handle]
 	if !ok {
 		return nil, errors.New("container does not exist")
