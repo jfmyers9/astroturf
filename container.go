@@ -3,6 +3,7 @@ package astroturf
 import (
 	"errors"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/cloudfoundry-incubator/garden"
@@ -15,12 +16,16 @@ type container struct {
 	diskLimits      garden.DiskLimits
 	memoryLimits    garden.MemoryLimits
 	properties      garden.Properties
+	processes       map[string]garden.Process
+	processLock     sync.RWMutex
 }
 
 func NewContainer(handle string) *container {
 	return &container{
-		handle:     handle,
-		properties: garden.Properties{},
+		handle:      handle,
+		properties:  garden.Properties{},
+		processes:   map[string]garden.Process{},
+		processLock: sync.RWMutex{},
 	}
 }
 
@@ -77,11 +82,24 @@ func (c *container) NetIn(hostPort, containerPort uint32) (uint32, uint32, error
 func (c *container) NetOut(netOutRule garden.NetOutRule) error                    { return nil }
 
 func (c *container) Run(processSpec garden.ProcessSpec, processIO garden.ProcessIO) (garden.Process, error) {
-	return NewProcess()
+	c.processLock.Lock()
+	defer c.processLock.Unlock()
+
+	p, err := NewProcess()
+	c.processes[p.ID()] = p
+	return p, err
 }
 
 func (c *container) Attach(processID string, io garden.ProcessIO) (garden.Process, error) {
-	return nil, nil
+	c.processLock.RLock()
+	defer c.processLock.RUnlock()
+
+	p, ok := c.processes[processID]
+	if !ok {
+		return nil, errors.New("no process")
+	}
+
+	return p, nil
 }
 
 func (c *container) Metrics() (garden.Metrics, error) {
