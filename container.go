@@ -39,7 +39,9 @@ func (c *container) Handle() string {
 func (c *container) Stop(kill bool) error { return nil }
 
 func (c *container) Info() (garden.ContainerInfo, error) {
-	return garden.ContainerInfo{}, nil
+	return garden.ContainerInfo{
+		ExternalIP: "localhost",
+	}, nil
 }
 
 func (c *container) StreamIn(spec garden.StreamInSpec) error                    { return nil }
@@ -81,8 +83,13 @@ func (c *container) CurrentMemoryLimits() (garden.MemoryLimits, error) {
 	return c.memoryLimits, nil
 }
 
-func (c *container) NetIn(hostPort, containerPort uint32) (uint32, uint32, error) { return 0, 0, nil }
-func (c *container) NetOut(netOutRule garden.NetOutRule) error                    { return nil }
+func (c *container) NetIn(hostPort, containerPort uint32) (uint32, uint32, error) {
+	return hostPort, containerPort, nil
+}
+
+func (c *container) NetOut(netOutRule garden.NetOutRule) error {
+	return nil
+}
 
 func (c *container) Run(processSpec garden.ProcessSpec, processIO garden.ProcessIO) (garden.Process, error) {
 	logger := c.logger.Session("run", lager.Data{"spec": processSpec})
