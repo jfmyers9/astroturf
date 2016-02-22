@@ -58,7 +58,7 @@ func main() {
 	logger, _ := cf_lager.New("astroturf")
 	logger.Info("starting")
 
-	backend := astroturf.NewBackend(*memoryInBytes, *diskInBytes, *maxContainers, *containerGraceTime)
+	backend := astroturf.NewBackend(logger, *memoryInBytes, *diskInBytes, *maxContainers, *containerGraceTime)
 
 	gardenServer := server.New(*listenNetwork, *listenAddr, graceTime, backend, logger)
 	err := gardenServer.Start()
