@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cloudfoundry-incubator/garden"
+	"github.com/pivotal-golang/lager"
 )
 
 type backend struct {
@@ -13,9 +14,10 @@ type backend struct {
 	containers    map[string]garden.Container
 	graceTime     time.Duration
 	containerLock sync.RWMutex
+	logger        lager.Logger
 }
 
-func NewBackend(memoryInBytes, diskInBytes, maxContainers uint64, graceTime time.Duration) *backend {
+func NewBackend(logger lager.Logger, memoryInBytes, diskInBytes, maxContainers uint64, graceTime time.Duration) *backend {
 	containers := make(map[string]garden.Container)
 	return &backend{
 		capacity: garden.Capacity{
@@ -26,6 +28,7 @@ func NewBackend(memoryInBytes, diskInBytes, maxContainers uint64, graceTime time
 		containers:    containers,
 		graceTime:     graceTime,
 		containerLock: sync.RWMutex{},
+		logger:        logger,
 	}
 }
 
@@ -50,7 +53,7 @@ func (c *backend) Create(spec garden.ContainerSpec) (garden.Container, error) {
 		return nil, errors.New("handle already taken")
 	}
 
-	container := NewContainer(spec.Handle)
+	container := NewContainer(c.logger, spec.Handle)
 	c.containers[spec.Handle] = container
 	return container, nil
 }
@@ -106,8 +109,8 @@ func (c *backend) BulkInfo(handles []string) (map[string]garden.ContainerInfoEnt
 			continue
 		}
 
-		info, err := container.Info()
-		infos[handle] = garden.ContainerInfoEntry{info, garden.NewError(err.Error())}
+		info, _ := container.Info()
+		infos[handle] = garden.ContainerInfoEntry{info, nil}
 	}
 
 	return infos, nil
@@ -124,8 +127,8 @@ func (c *backend) BulkMetrics(handles []string) (map[string]garden.ContainerMetr
 			continue
 		}
 
-		metric, err := container.Metrics()
-		metrics[handle] = garden.ContainerMetricsEntry{metric, garden.NewError(err.Error())}
+		metric, _ := container.Metrics()
+		metrics[handle] = garden.ContainerMetricsEntry{metric, nil}
 	}
 
 	return metrics, nil

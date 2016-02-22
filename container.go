@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudfoundry-incubator/garden"
+	"github.com/pivotal-golang/lager"
 )
 
 type container struct {
@@ -18,14 +19,16 @@ type container struct {
 	properties      garden.Properties
 	processes       map[string]garden.Process
 	processLock     sync.RWMutex
+	logger          lager.Logger
 }
 
-func NewContainer(handle string) *container {
+func NewContainer(logger lager.Logger, handle string) *container {
 	return &container{
 		handle:      handle,
 		properties:  garden.Properties{},
 		processes:   map[string]garden.Process{},
 		processLock: sync.RWMutex{},
+		logger:      logger,
 	}
 }
 
@@ -82,10 +85,14 @@ func (c *container) NetIn(hostPort, containerPort uint32) (uint32, uint32, error
 func (c *container) NetOut(netOutRule garden.NetOutRule) error                    { return nil }
 
 func (c *container) Run(processSpec garden.ProcessSpec, processIO garden.ProcessIO) (garden.Process, error) {
+	logger := c.logger.Session("run", lager.Data{"spec": processSpec})
+	logger.Info("starting")
+	defer logger.Info("completed")
+
 	c.processLock.Lock()
 	defer c.processLock.Unlock()
 
-	p, err := NewProcess()
+	p, err := NewProcess(c.logger, processSpec)
 	c.processes[p.ID()] = p
 	return p, err
 }
