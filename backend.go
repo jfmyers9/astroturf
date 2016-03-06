@@ -53,7 +53,7 @@ func (c *backend) Create(spec garden.ContainerSpec) (garden.Container, error) {
 		return nil, errors.New("handle already taken")
 	}
 
-	container := NewContainer(c.logger, spec.Handle)
+	container := NewContainer(c.logger, spec)
 	c.containers[spec.Handle] = container
 	return container, nil
 }

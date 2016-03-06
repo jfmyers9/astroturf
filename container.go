@@ -22,10 +22,10 @@ type container struct {
 	logger          lager.Logger
 }
 
-func NewContainer(logger lager.Logger, handle string) *container {
+func NewContainer(logger lager.Logger, spec garden.ContainerSpec) *container {
 	return &container{
-		handle:      handle,
-		properties:  garden.Properties{},
+		handle:      spec.Handle,
+		properties:  spec.Properties,
 		processes:   map[string]garden.Process{},
 		processLock: sync.RWMutex{},
 		logger:      logger,
