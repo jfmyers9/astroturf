@@ -99,7 +99,7 @@ func (c *container) Run(processSpec garden.ProcessSpec, processIO garden.Process
 	c.processLock.Lock()
 	defer c.processLock.Unlock()
 
-	p, err := NewProcess(c.logger, processSpec)
+	p, err := NewProcess(c.logger, processSpec, nil)
 	c.processes[p.ID()] = p
 	return p, err
 }

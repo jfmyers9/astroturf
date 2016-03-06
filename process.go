@@ -6,6 +6,7 @@ import (
 
 	"github.com/cloudfoundry-incubator/garden"
 	"github.com/nu7hatch/gouuid"
+	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -15,6 +16,7 @@ type process struct {
 	exitStatus chan int
 	signaled   chan garden.Signal
 	logger     lager.Logger
+	clock      clock.Clock
 }
 
 type processResult struct {
@@ -22,7 +24,7 @@ type processResult struct {
 	ExitCode int `json:"exit_code"`
 }
 
-func NewProcess(logger lager.Logger, spec garden.ProcessSpec) (*process, error) {
+func NewProcess(logger lager.Logger, spec garden.ProcessSpec, clock clock.Clock) (*process, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
@@ -48,6 +50,7 @@ func NewProcess(logger lager.Logger, spec garden.ProcessSpec) (*process, error) 
 		exitStatus: make(chan int),
 		signaled:   make(chan garden.Signal),
 		logger:     logger,
+		clock:      clock,
 	}
 
 	logger.Debug("created-process", lager.Data{"process": proc})
@@ -87,10 +90,10 @@ func (p *process) run() {
 	logger.Info("starting")
 	defer logger.Info("completed")
 
-	timer := time.NewTimer(time.Duration(p.result.Duration) * time.Second)
+	timer := p.clock.NewTimer(time.Duration(p.result.Duration) * time.Second)
 
 	select {
-	case <-timer.C:
+	case <-timer.C():
 		p.exitStatus <- p.result.ExitCode
 	case <-p.signaled:
 		p.exitStatus <- 1
